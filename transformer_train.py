@@ -14,6 +14,7 @@ import sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score
 from sklearn import preprocessing
+from sklearn.metrics import plot_confusion_matrix
 from tqdm import tqdm
 
 import torch
@@ -119,6 +120,10 @@ train_dataset = CREMADataset(X, transformed_labels, X.shape[0], split='train')
 val_dataset = CREMADataset(X, transformed_labels, X.shape[0], split='val')
 test_dataset = CREMADataset(X, transformed_labels, X.shape[0], split='test')
 
+print('Train dataset: ', len(train_dataset))
+print('Val dataest: ', len(val_dataset))
+print('Test dataset: ', len(test_dataset))
+
 # Set dataloaders
 batch_size = args.batch_size
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -145,12 +150,12 @@ losses = []
 val_loss = []
 accuracies = []
 val_accuracy = []
-correct_count = 0
 
 epochs = args.epochs
 for epoch in tqdm(range(epochs)):
     model.train()
     running_loss = 0
+    correct_count = 0
     for x,y in train_loader:
         optim.zero_grad()
 
