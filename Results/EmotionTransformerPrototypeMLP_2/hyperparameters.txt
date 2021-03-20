@@ -1,0 +1,6 @@
+Model: EmotionTransformerPrototypeMLP 
+Epochs: 300 
+learning rate: 0.001 
+weight decay: 1e-05 
+Num features: 8 
+ Num layers: 2 
