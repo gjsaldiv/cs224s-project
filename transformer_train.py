@@ -34,10 +34,22 @@ parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=1
 parser.add_argument('--num_layers', dest='num_layers', type=int, default=2, help='Number of MLP layers to stack')
 parser.add_argument('--run', dest='run', type=int, default=0, help='Experiment run number')
 parser.add_argument('--model', dest='model', default='EmotionTransformerPrototype', type=str, help='Model to use to run experiment')
+parser.add_argument('--dropout', dest='dropout', type=float, default=0.2, help='dropout probability')
 args = parser.parse_args()
 
 path = '/home/CREMA-D/AudioWAV/'
 files = os.listdir(path)
+
+# Helper function from homework
+def pad_wav(wav, wav_max_length, pad=0):
+    """Pads audio wave sequence to be `wav_max_length` long."""
+    dim = wav.shape[1]
+    padded = np.zeros((wav_max_length, dim)) + pad
+    if len(wav) > wav_max_length:
+        wav = wav[:wav_max_length]
+    length = len(wav)
+    padded[:length, :] = wav
+    return padded, length
 
 summary = pd.read_csv('/home/CREMA-D/processedResults/summaryTable.csv')
 
@@ -53,11 +65,21 @@ max_dur = 0
 max_length = 0
 
 print(f'Loading the data...')
-X = np.zeros((num_files, num_features))
+# mel spectrogram is padded to 250 (cause max duration is ~5 seconds, which is near 250), and n_mels is default 128
+X = np.zeros((num_files, num_features + 250 * 128))
 Y = np.zeros(num_files).astype(str)
 for sample in tqdm(files): #depends on how you access
     file = os.path.join(path,sample)
     current_wav, current_sr = librosa.load(file) #fix for set up
+    
+    # Mel spectrogram
+    mel_spec = librosa.feature.melspectrogram(y=current_wav, sr=current_sr)
+    m_log = librosa.power_to_db(mel_spec)
+    m_log_norm = librosa.util.normalize(m_log)
+    padded_wav, input_length = pad_wav(m_log_norm.T, 250)
+    flat_mel = padded_wav.flatten()
+    
+    # Prosodic features
     f0_series = librosa.yin(current_wav, librosa.note_to_hz('C2'), librosa.note_to_hz('C7'))
     rms_series = librosa.feature.rms(y=current_wav)
     f0_max = np.amax(f0_series)
@@ -82,7 +104,8 @@ for sample in tqdm(files): #depends on how you access
         x = np.array([f0_min, f0_max, f0_mean, f0_range, duration, rms_min, rms_max, rms_mean])
     else:
         x = np.array([f0_min, f0_max, f0_mean, rms_min, rms_max, rms_mean])
-
+    x = np.append(x, flat_mel)
+    
     X[count,:] = x
     # Get the label for VoiceVote
     info = summary.loc[summary['FileName'] == sample.split('.')[0]]
@@ -135,11 +158,11 @@ lr = args.lr
 weight_decay = args.weight_decay
 # Set up the model
 if model == 'EmotionTransformerPrototype':
-    model = EmotionTransformerPrototype(num_features, num_unique, num_layers=args.num_layers).cuda()
+    model = EmotionTransformerPrototype(num_features + 250 * 128, num_unique, num_layers=args.num_layers).cuda()
 elif model == 'EmotionTransformerPrototypeImproved':
-    model = EmotionTransformerPrototypeImproved(num_features, num_unique, num_layers=args.num_layers).cuda()
+    model = EmotionTransformerPrototypeImproved(num_features + 250 * 128, num_unique, num_layers=args.num_layers).cuda()
 elif model == 'EmotionTransformerPrototypeMLP':
-    model = EmotionTransformerPrototypeMLP(num_features, num_unique, num_layers=args.num_layers).cuda()
+    model = EmotionTransformerPrototypeMLP(num_features + 250 * 128, num_unique, num_layers=args.num_layers, dropout=args.dropout).cuda()
 
 # Set to negative log likelihood loss and Adam optimizer
 criterion = nn.NLLLoss()
@@ -234,8 +257,9 @@ print(f'Model: {args.model}')
 print(f'Epochs: ', epochs)
 print(f'Learning rate: ', lr)
 print(f'Weight decay: ', weight_decay)
-print(f'Num features: {num_features} ')
+print(f'Num features: {num_features} + 250 * 128 ')
 print(f'Num layers: {args.num_layers}')
+print(f'Dropout: {args.dropout}')
 path = './Results/' + args.model + f'_{args.run}'
 # if not os.path.isdir(path):
 #     os.mkdir(path)
@@ -246,8 +270,9 @@ with open(path+'/hyperparameters.txt', 'w') as file:
     file.write(f'Epochs: {epochs} \n')
     file.write(f'learning rate: {lr} \n')
     file.write(f'weight decay: {weight_decay} \n')
-    file.write(f'Num features: {num_features} \n ')
+    file.write(f'Num features: {num_features} + 250 * 128 \n ')
     file.write(f'Num layers: {args.num_layers} \n')
+    file.write(f'Dropout: {args.dropout} \n') 
 
 # Train plots
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
