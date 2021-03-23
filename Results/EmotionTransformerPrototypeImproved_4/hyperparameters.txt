@@ -1,0 +1,7 @@
+Model: EmotionTransformerPrototypeImproved 
+Epochs: 300 
+learning rate: 0.001 
+weight decay: 0.01 
+Num features: 8 + 250 * 128 
+ Num layers: 5 
+Dropout: 0.5 
