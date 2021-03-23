@@ -1,0 +1,1 @@
+Test loss: 1.521 , Test Accuracy: 0.612, Avg F1 macro: 0.2649, Avg F1 micro: 0.617

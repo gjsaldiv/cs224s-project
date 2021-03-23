@@ -1,0 +1,7 @@
+Model: EmotionLSTMTransformer 
+Epochs: 100 
+learning rate: 0.001 
+weight decay: 0.001 
+Num features: 6 
+ num layers: 2 
+dropout: 0.5 
